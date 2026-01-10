@@ -4,22 +4,18 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 def draw_frame(img_path, detections, category):
-    # 1. 加载图像 (PIL 默认就是 RGB)
     img = Image.open(img_path).convert("RGB")
     draw = ImageDraw.Draw(img)
     width, height = img.size
 
     def get_color(class_id):
         np.random.seed(class_id)
-        # PIL 接收 tuple 格式的 RGB 颜色
         return tuple(np.random.randint(0, 255, 3).tolist())
 
-    # 设置基础尺寸参考
     thickness = max(2, int(width / 500))
     # PIL 的字体需要指定大小，这里根据图片宽度动态计算
     font_size = max(12, int(width / 50))
     try:
-        # 尝试加载系统字体，如果失败则使用默认字体
         font = ImageFont.truetype("arial.ttf", font_size)
     except IOError:
         font = ImageFont.load_default()
@@ -37,7 +33,6 @@ def draw_frame(img_path, detections, category):
         # PIL 的 line width 可以直接指定
         draw.rectangle([x1, y1, x2, y2], outline=color, width=thickness)
 
-        # --- 2. 准备文本 ---
         label = f"{class_name} {conf:.2f}"
         
         # 获取文本占用的像素范围 [left, top, right, bottom]
