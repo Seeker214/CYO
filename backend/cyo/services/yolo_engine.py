@@ -28,7 +28,7 @@ class YOLOEngine:
             return ast.literal_eval(meta['names'])
         return {i: f"class_{i}" for i in range(100)}
 
-    def predict(self, img_path, img_size, conf_thres=0.25, 
+    def predict(self, img_path, img_size=640, conf_thres=0.25, 
                 iou_thres=0.45, max_det=1000):
         img0 = cv.imread(img_path)
         img = cv.cvtColor(img0, cv.COLOR_BGR2RGB)

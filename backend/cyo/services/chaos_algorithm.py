@@ -10,72 +10,79 @@ def encryption(image, key):
     """
     if not isinstance(image, np.ndarray):
         image = np.array(image)
-    I1 = image[:, :, 0].copy()
-    I2 = image[:, :, 1].copy()
-    I3 = image[:, :, 2].copy()
-
-    M, W, _ = image.shape
+        
+    # 转换为 float64 进行计算，防止 mod 256 之前的溢出
+    img_data = image.copy().astype(np.float64)
+    M, W, _ = img_data.shape
     Sum = M * W
-    p1, q1 = key.split(",")
-    p1, q1 = np.float32(p1), np.float32(q1)
-
-    RR, RG, RB, p, q = get_R_matrix(W, M, p1, q1)
+    
+    p1_val, q1_val = key.split(",")
+    p1_val, q1_val = np.float32(p1_val), np.float32(q1_val)
+    
+    # 混沌矩阵生成 (需确保 get_R_matrix 内部 reshape 使用 order='F')
+    RR, RG, RB, p, q = get_R_matrix(W, M, p1_val, q1_val)
     t = np.gcd(M, W)
+    Min_val = min(M, W)
 
-    TL = np.zeros(M * 3, dtype=image.dtype)
-    TH = np.zeros(W * 3, dtype=image.dtype)
-    Min = min(M, W)
+    I1 = img_data[:, :, 0]
+    I2 = img_data[:, :, 1]
+    I3 = img_data[:, :, 2]
+
+    # --- 1. 十字交叉置换 (Scrambling) ---
     for i in range(0, M, t):
         for j in range(0, W, t):
-            wi = int(np.floor(RR[i, j] * M)) + 1
-            wj  = int(np.floor(RG[i, j] * W)) + 1
-            wy = int(np.floor(RB[i, j] * Min)) + 1
+            # MATLAB 索引从 1 开始，这里对应 0-based
+            wi = int(np.floor(RR[i, j] * M))
+            wj = int(np.floor(RG[i, j] * W))
+            wy = int(np.floor(RB[i, j] * Min_val))
 
-            TH[:wy] = I3[wi, W-wy: W].copy()
-            TH[wy: W+wy] = I1[wi, :].copy()
-            TH[W+wy: 2*W+wy] = I2[wi, :].copy()
-            TH[2*W+wy: W*3] = I3[wi, :W-wy].copy()
-            I1[wi, :] = TH[:W].copy()
-            I2[wi, :] = TH[W: W*2].copy()
-            I3[wi, :] = TH[W*2: W*3].copy()
+            # 行变换：跨通道循环位移 (I1 -> I2 -> I3 -> I1)
+            # 模拟 MATLAB: TH = [I3_tail, I1, I2, I3_head]
+            row_combined = np.concatenate([I1[wi, :], I2[wi, :], I3[wi, :]])
+            row_rolled = np.roll(row_combined, wy) # 向右滚动 wy
+            I1[wi, :] = row_rolled[0:W]
+            I2[wi, :] = row_rolled[W:2*W]
+            I3[wi, :] = row_rolled[2*W:3*W]
 
-            TL[:wy] = I3[M-wy:M, wj].copy()
-            TL[wy: M+wy] = I1[:, wj].copy()
-            TL[M+wy: 2*M+wy] = I2[:, wj].copy()
-            TL[2*M+wy: M*3] = I3[:M-wy, wj].copy()
-            I1[:, wj] = TL[:M].copy()
-            I2[:, wj] = TL[M: M*2].copy()
-            I3[:, wj] = TL[2*M: M*3].copy()
-    
-    flat_I1 = I1.flatten(order='F')
-    flat_I2 = I2.flatten(order='F')
-    flat_I3 = I3.flatten(order='F')
+            # 列变换：跨通道循环位移
+            col_combined = np.concatenate([I1[:, wj], I2[:, wj], I3[:, wj]])
+            col_rolled = np.roll(col_combined, wy) # 向下滚动 wy
+            I1[:, wj] = col_rolled[0:M]
+            I2[:, wj] = col_rolled[M:2*M]
+            I3[:, wj] = col_rolled[2*M:3*M]
 
-    A = np.vstack((flat_I1, flat_I2, flat_I3)).flatten(order='F')
+    # --- 2. 混淆扩散 (Diffusion) ---
+    # MATLAB: A = [I1(:) I2(:) I3(:)]'; A = A(:)';
+    # 构造 [R1, G1, B1, R2, G2, B2...] 交替序列
+    f1 = I1.flatten(order='F')
+    f2 = I2.flatten(order='F')
+    f3 = I3.flatten(order='F')
+    A = np.vstack((f1, f2, f3)).flatten(order='F')
 
-    total_len = len(A)
+    total_len = 3 * Sum
     B = np.zeros(total_len)
     C = np.zeros(total_len)
-    S1 = np.floor(np.multiply(256, np.divide(np.add(p, q), 2)))
-    S2 = np.floor(np.multiply(256, p))
+    S1 = np.floor(256 * (p + q) / 2).flatten()
+    S2 = np.floor(256 * p).flatten()
 
-    B[-1] = (A[-1] + S1[-1]) % 256
+    # 逆向扩散 (Backward Diffusion)
+    B[total_len-1] = (A[total_len-1] + S1[total_len-1]) % 256
     for i in range(total_len - 2, -1, -1):
         B[i] = (B[i+1] + S1[i] + A[i]) % 256
 
+    # 正向扩散 (Forward Diffusion)
     C[0] = (B[0] + S2[0]) % 256
     for i in range(1, total_len):
         C[i] = (C[i-1] + B[i] + S2[i]) % 256
 
+    # --- 3. 还原图像 (Reshape) ---
+    # MATLAB: I1 = reshape(C(1:M*W), M, W)
+    # 重点：此处使用顺次截取
     I1_new = C[0:Sum].reshape((M, W), order='F').astype(np.uint8)
     I2_new = C[Sum:2*Sum].reshape((M, W), order='F').astype(np.uint8)
-    I3_new = C[2*Sum:].reshape((M, W), order='F').astype(np.uint8)
+    I3_new = C[2*Sum:3*Sum].reshape((M, W), order='F').astype(np.uint8)
 
-    image[:, :, 0] = I1_new
-    image[:, :, 1] = I2_new
-    image[:, :, 2] = I3_new
-
-    return image
+    return np.stack([I1_new, I2_new, I3_new], axis=2)
 
 
 def decryption(image, key):
@@ -87,68 +94,70 @@ def decryption(image, key):
     """
     if not isinstance(image, np.ndarray):
         image = np.array(image)
-    I1 = image[:, :, 0].copy()
-    I2 = image[:, :, 1].copy()
-    I3 = image[:, :, 2].copy()
-
-    M, N, _ = image.shape
-    Sum = M * N
-    p1, q1 = key.split(",")
-    p1, q1 = np.float32(p1), np.float32(q1)
-
-    RR, RG, RB, p, q = get_R_matrix(N, M, p1, q1)
-    t = np.gcd(M, N)
-
-    C = np.concatenate([I1.flatten(order='F'), 
-                        I2.flatten(order='F'), 
-                        I3.flatten(order='F')])
     
-    D = np.zeros_like(C)
-    E = np.zeros_like(C)
-    total_pixels = 3 * M * N
-    S1 = np.floor(np.multiply(256, np.divide(np.add(p, q), 2)))
-    S2 = np.floor(np.multiply(256, p))
-    # --- D Loop (MATLAB: 3*M*N:-1:2) ---
+    # 使用 float64 进行计算以确保模运算 (% 256) 的准确性
+    M, W, _ = image.shape
+    Sum = M * W
+    
+    p1_val, q1_val = key.split(",")
+    p1_val, q1_val = np.float32(p1_val), np.float32(q1_val)
+    
+    # 获取混沌矩阵 (必须确保与加密时生成的序列完全一致)
+    RR, RG, RB, p, q = get_R_matrix(W, M, p1_val, q1_val)
+    t = np.gcd(M, W)
+    Min_val = min(M, W)
+
+    # --- 1. 构造顺次序列 C (对应加密结尾的顺次截取) ---
+    # MATLAB: C = [I1(:)' I2(:)' I3(:)']
+    f1 = image[:, :, 0].flatten(order='F').astype(np.float64)
+    f2 = image[:, :, 1].flatten(order='F').astype(np.float64)
+    f3 = image[:, :, 2].flatten(order='F').astype(np.float64)
+    C = np.concatenate([f1, f2, f3])
+
+    total_len = 3 * Sum
+    D = np.zeros(total_len)
+    E = np.zeros(total_len)
+    S1 = np.floor(256 * (p + q) / 2).flatten()
+    S2 = np.floor(256 * p).flatten()
+
+    # --- 2. 逆向还原正向扩散 (还原 C -> B) ---
+    # 对应加密: C(i) = mod(C(i-1) + B(i) + S2(i), 256)
     D[1:] = (C[1:] - C[:-1] - S2[1:]) % 256
-    # 处理边界 D(1)
     D[0] = (C[0] - S2[0]) % 256
-    
-    # --- E Loop (MATLAB: 1:3*M*N-1) ---
+
+    # --- 3. 逆向还原逆向扩散 (还原 B -> A) ---
+    # 对应加密: B(i) = mod(B(i+1) + S1(i) + A(i), 256)
     E[:-1] = (D[:-1] - D[1:] - S1[:-1]) % 256
-    # 处理边界 E(end)
     E[-1] = (D[-1] - S1[-1]) % 256
-    
-    
-    I1_flat = E[0::3] # 取出所有 R
-    I2_flat = E[1::3] # 取出所有 G
-    I3_flat = E[2::3] # 取出所有 B
-    
-    I1 = I1_flat.reshape((M, N), order='F')
-    I2 = I2_flat.reshape((M, N), order='F')
-    I3 = I3_flat.reshape((M, N), order='F')
 
-    t = np.gcd(M, N)
-    Min = min(M, N)
-    
-    for i in range(M - t, -1, -t):
-        for j in range(N - t, -1, -t):
-            wi = int(np.floor(RR[i, j] * M)) + 1
-            wj = int(np.floor(RG[i, j] * N)) + 1
-            wy = int(np.floor(RB[i, j] * Min)) + 1
-            
-            TL = np.concatenate([I1[:, wj], I2[:, wj], I3[:, wj]])
-            I1[:, wj] = TL[wy : M + wy].copy()
-            I2[:, wj] = TL[M + wy : 2*M + wy].copy()
-            part1 = TL[2*M + wy :].copy()
-            part2 = TL[0 : wy].copy()
-            I3[:, wj] = np.concatenate([part1, part2])
-            
-            TH = np.concatenate([I1[wi, :], I2[wi, :], I3[wi, :]])
-            I1[wi, :] = TH[wy : N + wy].copy()
-            I2[wi, :] = TH[N + wy : 2*N + wy].copy()
-            part1_row = TH[2*N + wy :].copy()
-            part2_row = TH[0 : wy].copy()
-            I3[wi, :] = np.concatenate([part1_row, part2_row])
+    # --- 4. 按照交替模式提取通道数据 (对应加密开头的 [I1(:) I2(:) I3(:)]') ---
+    # E 的结构是 [R1, G1, B1, R2, G2, B2 ...]
+    I1 = E[0::3].reshape((M, W), order='F')
+    I2 = E[1::3].reshape((M, W), order='F')
+    I3 = E[2::3].reshape((M, W), order='F')
 
-    image_de = np.stack([I1, I2, I3], axis=2).astype(np.uint8)
-    return image_de
+    # --- 5. 逆置换 (Scrambling Recovery) ---
+    # 置换还原必须是加密步骤的完全倒序：先还原列，再还原行
+    # 注意：加密循环是正序，解密必须是逆序 (range 的逆序处理)
+    for i in range(((M - t) // t) * t, -1, -t):
+        for j in range(((W - t) // t) * t, -1, -t):
+            wi = int(np.floor(RR[i, j] * M))
+            wj = int(np.floor(RG[i, j] * W))
+            wy = int(np.floor(RB[i, j] * Min_val))
+
+            # 还原列变换 (加密是向下移动 wy，解密是向上移动 -wy)
+            col_combined = np.concatenate([I1[:, wj], I2[:, wj], I3[:, wj]])
+            col_rolled = np.roll(col_combined, -wy) 
+            I1[:, wj] = col_rolled[0:M]
+            I2[:, wj] = col_rolled[M:2*M]
+            I3[:, wj] = col_rolled[2*M:3*M]
+
+            # 还原行变换 (加密是向右移动 wy，解密是向左移动 -wy)
+            row_combined = np.concatenate([I1[wi, :], I2[wi, :], I3[wi, :]])
+            row_rolled = np.roll(row_combined, -wy)
+            I1[wi, :] = row_rolled[0:W]
+            I2[wi, :] = row_rolled[W:2*W]
+            I3[wi, :] = row_rolled[2*W:3*W]
+
+    # 将 float64 转回 uint8 并堆叠通道
+    return np.stack([I1, I2, I3], axis=2).astype(np.uint8)
