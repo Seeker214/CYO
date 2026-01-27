@@ -1,8 +1,9 @@
 from fastapi import APIRouter, UploadFile, File, Form, Request
 import shutil 
 from cyo.services.chaos_algorithm import encryption, decryption
+from cyo.utils.draw_frame import draw_frame
 from cyo.utils.file_process import save_file, delete_file
-from cyo.constants import SAVE_DIR
+from cyo.constants import SAVE_DIR, TARGETDETECTION
 import uuid
 from pathlib import Path
 import cv2 as cv
@@ -13,7 +14,7 @@ import logging
 router = APIRouter()
 
 @router.post("/api/predict")
-async def target_detect(request: Request, file: UploadFile = File(...)):
+async def target_detect(request: Request, file: UploadFile = File(...), image_category: str = Form(...)):
     temp_dir = "static/temp"
     path = Path(temp_dir)
     path.mkdir(parents=True, exist_ok=True)
@@ -22,11 +23,13 @@ async def target_detect(request: Request, file: UploadFile = File(...)):
     try:
         save_file(file, temp_file_path)
 
-        model = request.app.state.yolo_warship
+        model = request.app.state.MODELS[image_category]
         detections = model.predict(img_path=temp_file_path, img_size=640)
         # TODO: draw predict frame and store image
+        img_drawed_name = draw_frame(temp_file_path, detections, TARGETDETECTION)
+        base_url = str(request.base_url).rstrip("/")
         return {
-            "detect": detections
+            "url": f"{base_url}/api/read_image/{TARGETDETECTION}/{img_drawed_name}",
         }
     finally:
         delete_file(temp_file_path)
@@ -68,6 +71,14 @@ async def image_decryption(file: UploadFile, key: str):
         return {"error": KeyError}
     finally:
         delete_file(temp_file_path)
+
+@router.get("/api/read_image/{image_category}/{image_name}")
+async def read_image(image_category: str, image_name: str):
+    image_path = os.path.join("static", image_category, image_name)
+    if os.path.exists(image_path):
+        return {"img_path": image_path}
+    else:
+        return {"error": "Image not found"}
 
 
 def image_process_encryption(model, img_path, save_path, key):

@@ -2,6 +2,7 @@ import numpy as np
 import os
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+import logging
 
 def draw_frame(img_path, detections, category):
     img = Image.open(img_path).convert("RGB")
@@ -62,6 +63,5 @@ def draw_frame(img_path, detections, category):
     # 3. 执行无损保存
     # PNG 格式默认就是无损的。optimize=True 会在不损失画质的前提下进一步压缩体积
     img.save(save_path, format="PNG", optimize=True)
-    
-    print(f"✅ 已完成无损保存至: {save_path}")
-    return save_path
+    # logging.info(f"保存至: {save_path}")
+    return f"{file_stem}.png"

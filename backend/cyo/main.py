@@ -1,8 +1,12 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from cyo.api import image_processing
 from cyo.services.yolo_engine import YOLOEngine
 from contextlib import asynccontextmanager
-from cyo.constants import WARSHIP_MODEL_PATH, FACE_MODEL_PATH, CARID_MODEL_PATH
+from cyo.constants import (WARSHIP_MODEL_PATH, FACE_MODEL_PATH, CARID_MODEL_PATH, 
+                            TARGETDETECTION, ENCRYPTION, DECRYPTION, SAVE_DIR)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,6 +24,18 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 开发环境允许所有来源，生产环境请指定具体域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount(f"/api/read_image/{TARGETDETECTION}", StaticFiles(directory=SAVE_DIR['detection']))
+app.mount(f"/api/read_image/{ENCRYPTION}", StaticFiles(directory=SAVE_DIR['encryption']))
+app.mount(f"/api/read_image/{DECRYPTION}", StaticFiles(directory=SAVE_DIR['decryption']))
 
 app.include_router(image_processing.router, prefix="", tags=["图像处理"])
 
