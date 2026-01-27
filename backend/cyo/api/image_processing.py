@@ -3,7 +3,7 @@ import shutil
 from cyo.services.chaos_algorithm import encryption, decryption
 from cyo.utils.draw_frame import draw_frame
 from cyo.utils.file_process import save_file, delete_file
-from cyo.constants import SAVE_DIR, TARGETDETECTION
+from cyo.constants import SAVE_DIR, TARGETDETECTION, ENCRYPTION, DECRYPTION
 import uuid
 from pathlib import Path
 import cv2 as cv
@@ -14,7 +14,9 @@ import logging
 router = APIRouter()
 
 @router.post("/api/predict")
-async def target_detect(request: Request, file: UploadFile = File(...), image_category: str = Form(...)):
+async def target_detect(request: Request, 
+                        file: UploadFile = File(...), 
+                        image_category: str = Form(...)):
     temp_dir = "static/temp"
     path = Path(temp_dir)
     path.mkdir(parents=True, exist_ok=True)
@@ -36,28 +38,34 @@ async def target_detect(request: Request, file: UploadFile = File(...), image_ca
 
 
 @router.post("/api/encrypt")
-async def image_encryption(request: Request, file: UploadFile, key: str, category: str):
+async def image_encryption(request: Request, 
+                           file: UploadFile, 
+                           key: str = Form(...), 
+                           image_category: str = Form(...)):
     temp_dir = "static/temp"
     path = Path(temp_dir)
     path.mkdir(parents=True, exist_ok=True)
-    temp_file_path = f"{temp_dir}/{uuid.uuid4()}_{file.filename}"
+    temp_name = f"{uuid.uuid4()}_{file.filename}"
+    temp_file_path = f"{temp_dir}/{temp_name}"
 
     try:
         save_file(file, temp_file_path)
 
-        model = request.app.state.MODELS[category]
+        model = request.app.state.MODELS[image_category]
         save_path = os.path.join(SAVE_DIR['encryption'], file.filename)
         save_path = save_path.split(".")[0] + ".png"
         logging.info(save_path)
         image_process_encryption(model=model, img_path=temp_file_path, save_path=save_path, key=key)
-        return {"success": "success"}
-    except:
-        return {"error": "error"}
+        base_url = str(request.base_url).rstrip("/")
+        return {"url": f"{base_url}/api/read_image/{ENCRYPTION}/{file.filename.split('.')[0]}.png"}
+    except Exception as e:
+        logging.error(f"Encryption error: {e}")
+        return {"error": str(e)} 
     finally:
         delete_file(temp_file_path)
     
 @router.post("/api/decrypt")
-async def image_decryption(file: UploadFile, key: str):
+async def image_decryption(request: Request, file: UploadFile, key: str = Form(...)):
     temp_dir = "static/temp"
     path = Path(temp_dir)
     path.mkdir(parents=True, exist_ok=True)
@@ -67,6 +75,8 @@ async def image_decryption(file: UploadFile, key: str):
         save_file(file, temp_file_path)
         save_path = os.path.join(SAVE_DIR['decryption'], file.filename)
         image_process_decryption(img_path=temp_file_path, save_path=save_path, key=key)
+        base_url = str(request.base_url).rstrip("/")
+        return {"url": f"{base_url}/api/read_image/{DECRYPTION}/{file.filename.split('.')[0]}.png"}
     except KeyError:
         return {"error": KeyError}
     finally:

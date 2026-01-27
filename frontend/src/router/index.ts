@@ -30,12 +30,12 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/encryption/index.vue'),
         meta: { title: '图像加密' }
       },
-    //   {
-    //     path: 'decryption',
-    //     name: 'Decryption',
-    //     component: () => import('@/views/decryption/index.vue'),
-    //     meta: { title: '图像解密' }
-    //   },
+      {
+        path: 'decryption',
+        name: 'Decryption',
+        component: () => import('@/views/decryption/index.vue'),
+        meta: { title: '图像解密' }
+      },
     //   {
     //     path: 'dynamics',
     //     name: 'Dynamics',

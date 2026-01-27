@@ -62,8 +62,6 @@ async function handleUpload({ file }: { file: File }) {
   formData.append('image_category', imageCategory.value);
 
   try {
-    // 【修改点】：直接写相对路径，axios 会自动拼接 VITE_API_BASE_URL
-    // 即：http://127.0.0.1:8000 + /api/predict
     const data = await request.post('/api/predict', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'

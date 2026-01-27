@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus';
 const service = axios.create({
   // 自动使用 .env 文件中的变量
   baseURL: import.meta.env.VITE_API_BASE_URL, 
-  timeout: 5000 // 请求超时时间
+//   timeout: 5000 // 请求超时时间
 });
 
 // 2. 请求拦截器 (可以在这里统一加 Token)

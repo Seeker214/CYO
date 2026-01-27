@@ -1,18 +1,11 @@
 <template>
   <div>
-    <div class="page-header">图像加密工具</div>
+    <div class="page-header">图像解密工具</div>
 
     <el-card header="参数配置与上传" class="mb-20">
       <el-form :inline="true" class="demo-form-inline">
-        <el-form-item label="图像类别">
-          <el-select v-model="imageCategory" placeholder="请选择类别" style="width: 150px">
-            <el-option label="Warship" value="warship" />
-            <el-option label="Face" value="face" />
-            <el-option label="Car" value="car" />
-          </el-select>
-        </el-form-item>
 
-        <el-form-item label="加密密钥">
+        <el-form-item label="解密密钥">
           <el-input 
             v-model="secretKey" 
             placeholder="请输入密钥" 
@@ -37,7 +30,7 @@
 
         <el-form-item>
           <el-button type="primary" @click="handleEncrypt" :loading="loading">
-            开始加密
+            开始解密
           </el-button>
         </el-form-item>
       </el-form>
@@ -45,20 +38,20 @@
 
     <el-row :gutter="20">
       <el-col :span="12">
-        <el-card header="原始图像 (加密前)">
+        <el-card header="待解密图像">
           <div class="image-container">
             <div v-if="!originalImageUrl" class="placeholder-text">请先选择图片</div>
-            <img v-else :src="originalImageUrl" alt="原始图像" class="preview-img" />
+            <img v-else :src="originalImageUrl" alt="待解密图像" class="preview-img" />
           </div>
         </el-card>
       </el-col>
 
       <el-col :span="12">
-        <el-card header="加密后图像 (结果)">
+        <el-card header="解密后图像 (结果)">
           <div class="image-container">
-            <div v-if="loading" class="placeholder-text">加密处理中...</div>
+            <div v-if="loading" class="placeholder-text">解密处理中...</div>
             <div v-else-if="!encryptedImageUrl" class="placeholder-text">等待处理结果</div>
-            <img v-else :src="encryptedImageUrl" alt="加密后图像" class="preview-img" />
+            <img v-else :src="encryptedImageUrl" alt="解密后图像" class="preview-img" />
           </div>
         </el-card>
       </el-col>
@@ -77,61 +70,53 @@ const imageCategory = ref('warship'); // 默认类别
 const secretKey = ref('');            // 密钥
 const selectedFile = ref<File | null>(null); // 存储选中的文件对象
 const originalImageUrl = ref('');     // 本地预览地址
-const encryptedImageUrl = ref('');    // 后端返回的加密图地址
+const encryptedImageUrl = ref('');    // 后端返回的图地址
 const loading = ref(false);           // 加载状态
 
 // --- 1. 处理文件选择与预览 ---
 const handleFileChange = (uploadFile: any) => {
   const rawFile = uploadFile.raw;
   
-  // 校验图片
   if (!rawFile.type.startsWith('image/')) {
     ElMessage.error('只能上传图片文件');
     return;
   }
 
-  // 保存文件对象供后续上传
   selectedFile.value = rawFile;
 
-  // 生成本地预览 URL (不需要上传到后端就能看)
   originalImageUrl.value = URL.createObjectURL(rawFile);
   
-  // 清空之前的加密结果
   encryptedImageUrl.value = '';
 };
 
-// --- 2. 处理加密请求 ---
 const handleEncrypt = async () => {
   // 校验逻辑
   if (!selectedFile.value) {
-    ElMessage.warning('请先选择一张图片');
+    ElMessage.warning('请先选择待解密图片');
     return;
   }
   if (!secretKey.value) {
-    ElMessage.warning('请输入加密密钥');
+    ElMessage.warning('请输入解密密钥');
     return;
   }
 
   loading.value = true;
 
-  // 构建 FormData
   const formData = new FormData();
   formData.append('file', selectedFile.value);
-  formData.append('image_category', imageCategory.value);
   formData.append('key', secretKey.value); // 传递密钥
 
   try {
-    
-    const res = await request.post(`/api/encrypt`, formData, {
+    const res = await request.post(`/api/decrypt`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     console.log('后端返回数据:', res);
 
     if (res.url) {
       encryptedImageUrl.value = res.url;
-      ElMessage.success('加密成功');
+      ElMessage.success('解密成功');
     } else {
-      ElMessage.error('加密失败：未返回图像地址');
+      ElMessage.error('解密失败：未返回图像地址');
     }
 
   } catch (error: any) {
