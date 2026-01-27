@@ -36,12 +36,12 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/decryption/index.vue'),
         meta: { title: '图像解密' }
       },
-    //   {
-    //     path: 'dynamics',
-    //     name: 'Dynamics',
-    //     component: () => import('@/views/dynamics/index.vue'),
-    //     meta: { title: '系统动力学' }
-    //   },
+      {
+        path: 'dynamics',
+        name: 'Dynamics',
+        component: () => import('@/views/chaos/index.vue'),
+        meta: { title: '系统动力学' }
+      },
     //   {
     //     path: 'settings',
     //     name: 'Settings',
