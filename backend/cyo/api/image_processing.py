@@ -27,7 +27,7 @@ async def target_detect(request: Request,
 
         model = request.app.state.MODELS[image_category]
         detections = model.predict(img_path=temp_file_path, img_size=640)
-        # TODO: draw predict frame and store image
+
         img_drawed_name = draw_frame(temp_file_path, detections, TARGETDETECTION)
         base_url = str(request.base_url).rstrip("/")
         return {

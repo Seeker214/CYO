@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from cyo.api import image_processing
+from cyo.api import image_processing, image_analysis
 from cyo.services.yolo_engine import YOLOEngine
 from contextlib import asynccontextmanager
 from cyo.constants import (WARSHIP_MODEL_PATH, FACE_MODEL_PATH, CARID_MODEL_PATH, 
@@ -38,4 +38,5 @@ app.mount(f"/api/read_image/{ENCRYPTION}", StaticFiles(directory=SAVE_DIR['encry
 app.mount(f"/api/read_image/{DECRYPTION}", StaticFiles(directory=SAVE_DIR['decryption']))
 
 app.include_router(image_processing.router, prefix="", tags=["图像处理"])
+app.include_router(image_analysis.router, prefix="", tags=["图像分析"])
 
