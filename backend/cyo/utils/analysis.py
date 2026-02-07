@@ -120,3 +120,41 @@ def analyze_pixel_corelation(image, sample_size=3000):
         }
         
     return results
+
+
+def calculate_npcr_uaci(img1, img2):
+    """
+    计算两个图像之间的 NPCR 和 UACI 指标
+    
+    NPCR (Number of Pixels Change Rate): 像素变化率
+    - 理想值接近 99.6094% (8位图像)
+    
+    UACI (Unified Average Changing Intensity): 平均变化强度  
+    - 理想值接近 33.4635% (8位图像)
+    
+    Args:
+        img1: 第一个图像 (numpy array)
+        img2: 第二个图像 (numpy array)
+        
+    Returns:
+        tuple: (npcr, uaci) 两个百分比值
+    """
+    if img1.shape != img2.shape:
+        raise ValueError("两个图像尺寸必须相同")
+    
+    # 转换为整型数组避免浮点运算误差
+    img1 = img1.astype(np.int32)
+    img2 = img2.astype(np.int32)
+    
+    # 计算总像素数（包括所有通道）
+    total_pixels = img1.size
+    
+    # NPCR: 统计不同的像素数量
+    diff_pixels = np.sum(img1 != img2)
+    npcr = (diff_pixels / total_pixels) * 100.0
+    
+    # UACI: 计算平均变化强度
+    abs_diff = np.abs(img1 - img2)
+    uaci = (np.sum(abs_diff) / (total_pixels * 255.0)) * 100.0
+    
+    return npcr, uaci

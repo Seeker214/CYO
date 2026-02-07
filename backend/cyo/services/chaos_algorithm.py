@@ -32,9 +32,10 @@ def encryption(image, key):
     for i in range(0, M, t):
         for j in range(0, W, t):
             # MATLAB 索引从 1 开始，这里对应 0-based
-            wi = int(np.floor(RR[i, j] * M))
-            wj = int(np.floor(RG[i, j] * W))
-            wy = int(np.floor(RB[i, j] * Min_val))
+            # 确保索引不会越界
+            wi = min(int(np.floor(RR[i, j] * M)), M - 1)
+            wj = min(int(np.floor(RG[i, j] * W)), W - 1)
+            wy = min(int(np.floor(RB[i, j] * Min_val)), Min_val - 1)
 
             # 行变换：跨通道循环位移 (I1 -> I2 -> I3 -> I1)
             # 模拟 MATLAB: TH = [I3_tail, I1, I2, I3_head]
@@ -141,9 +142,10 @@ def decryption(image, key):
     # 注意：加密循环是正序，解密必须是逆序 (range 的逆序处理)
     for i in range(((M - t) // t) * t, -1, -t):
         for j in range(((W - t) // t) * t, -1, -t):
-            wi = int(np.floor(RR[i, j] * M))
-            wj = int(np.floor(RG[i, j] * W))
-            wy = int(np.floor(RB[i, j] * Min_val))
+            # 确保索引不会越界
+            wi = min(int(np.floor(RR[i, j] * M)), M - 1)
+            wj = min(int(np.floor(RG[i, j] * W)), W - 1)
+            wy = min(int(np.floor(RB[i, j] * Min_val)), Min_val - 1)
 
             # 还原列变换 (加密是向下移动 wy，解密是向上移动 -wy)
             col_combined = np.concatenate([I1[:, wj], I2[:, wj], I3[:, wj]])

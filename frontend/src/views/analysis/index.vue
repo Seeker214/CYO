@@ -91,8 +91,39 @@
                <template #header><span>信息熵分析</span></template>
                <div ref="entropyChartRef" style="height: 300px;"></div>
             </el-card>
-         </el-col>
-      </el-row>
+         </el-col>         <el-col :span="12">
+            <el-card shadow="hover">
+               <template #header><span>差分攻击分析</span></template>
+               <div class="differential-display">
+                 <div v-if="differentialData" class="diff-metrics">
+                   <div class="metric-item">
+                     <div class="metric-label">NPCR (像素变化率)</div>
+                     <div class="metric-value" :class="getNpcrClass(differentialData.npcr)">
+                       {{ differentialData.npcr }}%
+                     </div>
+                     <div class="metric-ideal">理想值: {{ differentialData.npcr_ideal }}%</div>
+                     <div class="metric-status" :class="getNpcrClass(differentialData.npcr)">
+                       {{ getNpcrStatus(differentialData.npcr) }}
+                     </div>
+                   </div>
+                   <el-divider direction="vertical" style="height: 120px;" />
+                   <div class="metric-item">
+                     <div class="metric-label">UACI (平均变化强度)</div>
+                     <div class="metric-value" :class="getUaciClass(differentialData.uaci)">
+                       {{ differentialData.uaci }}%
+                     </div>
+                     <div class="metric-ideal">理想值: {{ differentialData.uaci_ideal }}%</div>
+                     <div class="metric-status" :class="getUaciClass(differentialData.uaci)">
+                       {{ getUaciStatus(differentialData.uaci) }}
+                     </div>
+                   </div>
+                 </div>
+                 <div v-else class="diff-empty">
+                   <el-empty description="仅在上传明文图像时进行差分攻击分析" :image-size="100" />
+                 </div>
+               </div>
+            </el-card>
+         </el-col>      </el-row>
     </div>
   </div>
 </template>
@@ -111,6 +142,7 @@ const uploadedFileName = ref('');
 const fullAnalysisData = ref<any>(null);
 const correlationDirection = ref('Horizontal');
 const currentCorrelationValue = ref<number | null>(null);
+const differentialData = ref<any>(null);
 
 // [新增] 定义是否加密的布尔变量，默认为 false (原始图像)
 const isEncrypted = ref(false);
@@ -183,6 +215,7 @@ const handleUpload = async (options: any) => {
       renderEntropy(responseData.entropy);
       correlationDirection.value = 'Horizontal';
       updateCorrelationChart();
+      differentialData.value = responseData.differential || null;
       
       ElMessage.success(`分析完成 (${isEncrypted.value ? '加密模式' : '原始模式'})`);
     }
@@ -274,6 +307,31 @@ const renderEntropy = (entropyVal: number) => {
     }]
   });
 };
+
+// 差分攻击状态判断函数
+const getNpcrStatus = (npcr: number) => {
+  if (npcr >= 99.5) return '优秀';
+  if (npcr >= 99.0) return '良好';
+  return '待改进';
+};
+
+const getUaciStatus = (uaci: number) => {
+  if (uaci >= 32.0 && uaci <= 35.0) return '优秀';
+  if (uaci >= 30.0 && uaci <= 37.0) return '良好';
+  return '待改进';
+};
+
+const getNpcrClass = (npcr: number) => {
+  if (npcr >= 99.5) return 'status-excellent';
+  if (npcr >= 99.0) return 'status-good';
+  return 'status-poor';
+};
+
+const getUaciClass = (uaci: number) => {
+  if (uaci >= 32.0 && uaci <= 35.0) return 'status-excellent';
+  if (uaci >= 30.0 && uaci <= 37.0) return 'status-good';
+  return 'status-poor';
+};
 </script>
 
 <style scoped>
@@ -327,4 +385,65 @@ const renderEntropy = (entropyVal: number) => {
 }
 .card-header-tabs { display: flex; justify-content: space-between; align-items: center; }
 .correlation-score { text-align: center; margin-top: 10px; font-size: 14px; color: #606266; }
+
+/* 差分攻击展示样式 */
+.differential-display {
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.diff-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  padding: 20px;
+}
+.metric-item {
+  flex: 1;
+  text-align: center;
+}
+.metric-label {
+  font-size: 14px;
+  color: #606266;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+.metric-value {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+.metric-ideal {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+.metric-status {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.status-excellent {
+  color: #67C23A;
+  background-color: #f0f9ff;
+}
+.status-good {
+  color: #E6A23C;
+  background-color: #fdf6ec;
+}
+.status-poor {
+  color: #F56C6C;
+  background-color: #fef0f0;
+}
+.diff-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 </style>
