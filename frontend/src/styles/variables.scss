@@ -1,0 +1,30 @@
+// 科技感配色方案
+$primary-color: #00d4ff;
+$secondary-color: #0099ff;
+$accent-color: #00ffaa;
+$dark-bg: #0a0e27;
+$darker-bg: #060916;
+$card-bg: rgba(15, 20, 40, 0.8);
+$sidebar-bg: rgba(10, 14, 39, 0.95);
+$text-primary: #ffffff;
+$text-secondary: #a0aec0;
+$border-color: rgba(0, 212, 255, 0.2);
+$shadow-glow: 0 0 20px rgba(0, 212, 255, 0.3);
+
+// 间距
+$spacing-xs: 8px;
+$spacing-sm: 12px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+
+// 圆角
+$radius-sm: 4px;
+$radius-md: 8px;
+$radius-lg: 12px;
+$radius-xl: 16px;
+
+// 动画
+$transition-fast: 0.2s ease;
+$transition-normal: 0.3s ease;
+$transition-slow: 0.5s ease;

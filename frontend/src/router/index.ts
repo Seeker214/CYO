@@ -41,13 +41,7 @@ const routes: Array<RouteRecordRaw> = [
         name: 'Dynamics',
         component: () => import('@/views/chaos/index.vue'),
         meta: { title: '系统动力学' }
-      },
-    //   {
-    //     path: 'settings',
-    //     name: 'Settings',
-    //     component: () => import('@/views/settings/index.vue'),
-    //     meta: { title: '设置' }
-    //   }
+      }
     ]
   }
 ];

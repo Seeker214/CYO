@@ -1,101 +1,152 @@
 <template>
-  <div class="chaos-analysis-page">
-    <div class="page-header">混沌特性多维展示</div>
-    
-    <el-row :gutter="20">
-      
-      <el-col :span="6">
-        <el-card class="control-card">
-          <template #header>
-            <div class="card-header">
-              <span>参数设置</span>
-              <el-tag size="small" effect="plain">{{ modeLabel }}模式</el-tag>
-            </div>
-          </template>
-
-          <el-form :model="form" label-position="top" size="default">
-            
-            <el-form-item label="分析模式 (控制变量)">
-              <el-radio-group v-model="form.mode" @change="handleModeChange" class="mode-group">
-                <el-radio-button label="k">K 变化 (固定 A)</el-radio-button>
-                <el-radio-button label="a">A 变化 (固定 K)</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
-
-            <el-divider content-position="center">扫描范围</el-divider>
-
-            <el-row :gutter="10">
-              <el-col :span="12">
-                <el-form-item :label="labels.start">
-                  <el-input-number v-model="form.start" :step="0.1" :precision="3" style="width: 100%" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item :label="labels.end">
-                  <el-input-number v-model="form.end" :step="0.1" :precision="3" style="width: 100%" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-
-            <el-form-item label="扫描步长 (Step)">
-              <el-input-number v-model="form.step" :step="0.001" :precision="4" style="width: 100%" />
-            </el-form-item>
-
-            <el-divider content-position="center">系统常量</el-divider>
-
-            <el-form-item :label="labels.fixed">
-              <el-input-number v-model="form.fixed_val" :step="0.1" :precision="3" style="width: 100%" />
-            </el-form-item>
-
-            <el-form-item class="mt-20">
-              <el-button 
-                type="primary" 
-                @click="startAnalysis" 
-                :loading="loading" 
-                class="full-width-btn"
-                size="large"
-              >
-                {{ loading ? '正在计算拓扑结构...' : '开始仿真分析' }}
-              </el-button>
-            </el-form-item>
-
-          </el-form>
-        </el-card>
-        
-        <div class="info-tip">
-          <small>* 计算量较大，高精度步长可能需要几秒钟。</small>
+  <div class="chaos-page">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="header-content">
+        <div class="title-wrapper">
+          <h1 class="page-title">系统动力学</h1>
+          <p class="page-subtitle">基于混沌理论的系统动力学特性分析与可视化</p>
         </div>
-      </el-col>
+        
+        <div class="header-meta">
+          <span class="mode-badge">
+            {{ modeLabel }}模式
+          </span>
+        </div>
+      </div>
+    </div>
 
-      <el-col :span="18">
-        <el-card header="可视化区域" class="viz-card" body-style="padding: 10px;">
-          
-          <div v-loading="loading" element-loading-text="正在进行数值迭代与矩阵分解...">
-            
-            <div class="chart-container main-chart">
-              <div class="chart-title">分岔图 (Bifurcation Diagram)</div>
-              <div ref="bifChartRef" class="echart-box large"></div>
-            </div>
-
-            <el-row :gutter="10" class="mt-10">
-              <el-col :span="12">
-                <div class="chart-container sub-chart">
-                  <div class="chart-title">Lyapunov 指数谱</div>
-                  <div ref="leChartRef" class="echart-box normal"></div>
-                </div>
-              </el-col>
-              <el-col :span="12">
-                <div class="chart-container sub-chart">
-                  <div class="chart-title">末态相图 (Phase Portrait)</div>
-                  <div ref="phaseChartRef" class="echart-box normal"></div>
-                </div>
-              </el-col>
-            </el-row>
-
+    <div class="chaos-container">
+      <!-- Left: Parameters -->
+      <div class="params-section">
+        <div class="section-card">
+          <div class="card-header">
+            <h3>参数配置</h3>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+          
+          <div class="params-form">
+            <!-- Mode Selection -->
+            <div class="form-group">
+              <label class="form-label">分析模式</label>
+              <div class="mode-selector">
+                <button 
+                  :class="['mode-btn', { active: form.mode === 'k' }]"
+                  @click="handleModeChange('k')"
+                >
+                  <span class="mode-title">K 变化</span>
+                  <span class="mode-desc">固定 A 参数</span>
+                </button>
+                <button 
+                  :class="['mode-btn', { active: form.mode === 'a' }]"
+                  @click="handleModeChange('a')"
+                >
+                  <span class="mode-title">A 变化</span>
+                  <span class="mode-desc">固定 K 参数</span>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Range Settings -->
+            <div class="form-group">
+              <label class="form-label">扫描范围</label>
+              <div class="range-inputs">
+                <div class="input-wrapper">
+                  <span class="input-label">{{ labels.start }}</span>
+                  <el-input-number 
+                    v-model="form.start" 
+                    :step="0.1" 
+                    :precision="3" 
+                    size="large"
+                    controls-position="right"
+                  />
+                </div>
+                <div class="input-wrapper">
+                  <span class="input-label">{{ labels.end }}</span>
+                  <el-input-number 
+                    v-model="form.end" 
+                    :step="0.1" 
+                    :precision="3" 
+                    size="large"
+                    controls-position="right"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">扫描步长</label>
+              <el-input-number 
+                v-model="form.step" 
+                :step="0.001" 
+                :precision="4" 
+                size="large"
+                controls-position="right"
+                style="width: 100%"
+              />
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">{{ labels.fixed }}</label>
+              <el-input-number 
+                v-model="form.fixed_val" 
+                :step="0.1" 
+                :precision="3" 
+                size="large"
+                controls-position="right"
+                style="width: 100%"
+              />
+            </div>
+            
+            <button 
+              class="analyze-btn"
+              @click="startAnalysis" 
+              :disabled="loading"
+            >
+              <el-icon v-if="!loading"><TrendCharts /></el-icon>
+              <el-icon v-else class="loading-icon"><Loading /></el-icon>
+              <span>{{ loading ? '计算拓扑结构中...' : '开始仿真分析' }}</span>
+            </button>
+            
+            <div class="info-notice">
+              <el-icon><InfoFilled /></el-icon>
+              <span>高精度步长可能需要较长计算时间</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Visualizations -->
+      <div class="viz-section">
+        <div v-loading="loading" element-loading-text="正在进行数值迭代与矩阵分解..." class="charts-wrapper">
+          <!-- Main Chart -->
+          <div class="chart-card main-chart">
+            <div class="chart-header">
+              <h3>分岔图</h3>
+              <span class="chart-subtitle">Bifurcation Diagram</span>
+            </div>
+            <div ref="bifChartRef" class="chart-canvas large"></div>
+          </div>
+
+          <!-- Sub Charts -->
+          <div class="sub-charts-grid">
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>Lyapunov 指数谱</h3>
+              </div>
+              <div ref="leChartRef" class="chart-canvas normal"></div>
+            </div>
+            
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>末态相图</h3>
+                <span class="chart-subtitle">Phase Portrait</span>
+              </div>
+              <div ref="phaseChartRef" class="chart-canvas normal"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -103,7 +154,8 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import * as echarts from 'echarts';
 import { ElMessage } from 'element-plus';
-import request from '@/utils/request'; // 确保路径正确
+import { TrendCharts, Loading, InfoFilled } from '@element-plus/icons-vue';
+import request from '@/utils/request';
 
 // --- 状态管理 ---
 const loading = ref(false);
@@ -138,6 +190,9 @@ let phaseChart: echarts.ECharts | null = null;
 // --- 核心逻辑 ---
 
 const handleModeChange = (val: string) => {
+  // 更新模式
+  form.mode = val;
+  
   // 切换模式时重置为典型参数，提升体验
   if (val === 'k') {
     form.start = 0.6; form.end = 1.4; form.fixed_val = 0.6;
@@ -176,24 +231,50 @@ const renderBifurcation = (data: any) => {
   const xAxisName = form.mode.toUpperCase();
   
   bifChart.setOption({
-    tooltip: { trigger: 'axis', show: false }, // 数据量大时关闭 tooltip 提升性能
-    grid: { left: '5%', right: '5%', bottom: '15%', top: '10%' },
-    dataZoom: [{ type: 'inside' }, { type: 'slider' }], // 支持缩放查看细节
+    tooltip: { trigger: 'axis', show: false },
+    grid: { left: '5%', right: '5%', bottom: '15%', top: '10%', containLabel: true },
+    dataZoom: [
+      { type: 'inside' }, 
+      { 
+        type: 'slider',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        dataBackground: {
+          lineStyle: { color: 'rgba(0, 212, 255, 0.5)' },
+          areaStyle: { color: 'rgba(0, 212, 255, 0.2)' }
+        },
+        fillerColor: 'rgba(0, 212, 255, 0.2)',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        handleStyle: { color: '#00d4ff' },
+        moveHandleStyle: { color: '#00d4ff' },
+        textStyle: { color: '#ccc' }
+      }
+    ],
     xAxis: { 
       name: xAxisName, 
       type: 'value', 
       scale: true,
       nameLocation: 'middle',
-      nameGap: 25 
+      nameGap: 25,
+      nameTextStyle: { color: '#ccc', fontSize: 13 },
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
+      axisLabel: { color: '#999' },
+      splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } }
     },
-    yAxis: { name: 'x(n)', scale: true },
+    yAxis: { 
+      name: 'x(n)', 
+      scale: true,
+      nameTextStyle: { color: '#ccc', fontSize: 13 },
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
+      axisLabel: { color: '#999' },
+      splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } }
+    },
     series: [{
       type: 'scatter',
       symbolSize: 1.5,
-      itemStyle: { color: '#000', opacity: 0.6 },
-      large: true, // 开启大数据量优化
+      itemStyle: { color: '#00d4ff', opacity: 0.4 },
+      large: true,
       largeThreshold: 2000,
-      data: data.x // 后端已组装好 [[x, y], [x, y]] 格式
+      data: data.x
     }]
   }, true);
 };
@@ -204,27 +285,59 @@ const renderLyapunov = (data: any) => {
   const xAxisName = form.mode.toUpperCase();
 
   leChart.setOption({
-    tooltip: { trigger: 'axis' },
-    legend: { top: 0 },
-    grid: { left: '10%', right: '5%', bottom: '15%', top: '15%' },
-    xAxis: { name: xAxisName, type: 'value', scale: true },
-    yAxis: { name: 'LEs' },
-    // 添加 y=0 参考线
-    markLine: {
-      data: [{ yAxis: 0 }],
-      symbol: 'none',
-      lineStyle: { color: '#999', type: 'dashed' }
+    tooltip: { 
+      trigger: 'axis',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      borderColor: 'rgba(0, 212, 255, 0.5)',
+      textStyle: { color: '#fff' }
+    },
+    legend: { 
+      top: 0,
+      textStyle: { color: '#ccc' },
+      inactiveColor: 'rgba(255, 255, 255, 0.3)'
+    },
+    grid: { left: '10%', right: '5%', bottom: '15%', top: '15%', containLabel: true },
+    xAxis: { 
+      name: xAxisName, 
+      type: 'value', 
+      scale: true,
+      nameTextStyle: { color: '#ccc', fontSize: 13 },
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
+      axisLabel: { color: '#999' },
+      splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } }
+    },
+    yAxis: { 
+      name: 'LEs',
+      nameTextStyle: { color: '#ccc', fontSize: 13 },
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
+      axisLabel: { color: '#999' },
+      splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } }
     },
     series: [
       { 
-        name: 'LE1', type: 'line', showSymbol: false, smooth: true,
-        lineStyle: { width: 1.5 }, color: '#409EFF',
-        data: data.le1 
+        name: 'LE1', 
+        type: 'line', 
+        showSymbol: false, 
+        smooth: true,
+        lineStyle: { width: 2.5 }, 
+        color: '#00d4ff',
+        data: data.le1,
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: 'rgba(255, 255, 255, 0.2)', type: 'dashed', width: 1 },
+          data: [{ yAxis: 0 }],
+          label: { show: false }
+        }
       },
       { 
-        name: 'LE2', type: 'line', showSymbol: false, smooth: true,
-        lineStyle: { width: 1.5 }, color: '#F56C6C',
-        data: data.le2 
+        name: 'LE2', 
+        type: 'line', 
+        showSymbol: false, 
+        smooth: true,
+        lineStyle: { width: 2.5 }, 
+        color: '#ff6b9d',
+        data: data.le2
       }
     ]
   }, true);
@@ -234,18 +347,36 @@ const renderLyapunov = (data: any) => {
 const renderPhase = (data: any) => {
   if (!phaseChart) return;
   
-  // 转换数据格式：x:[], y:[] -> [[x,y], ...]
   const scatterData = data.x.map((val: number, i: number) => [val, data.y[i]]);
 
   phaseChart.setOption({
-    tooltip: { trigger: 'item' },
-    grid: { left: '10%', right: '10%', bottom: '15%', top: '15%' },
-    xAxis: { name: 'x(n)', scale: true, splitLine: { show: false } },
-    yAxis: { name: 'y(n)', scale: true, splitLine: { show: false } },
+    tooltip: { 
+      trigger: 'item',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      borderColor: 'rgba(0, 212, 255, 0.5)',
+      textStyle: { color: '#fff' }
+    },
+    grid: { left: '10%', right: '10%', bottom: '15%', top: '10%', containLabel: true },
+    xAxis: { 
+      name: 'x(n)', 
+      scale: true, 
+      splitLine: { show: false },
+      nameTextStyle: { color: '#ccc', fontSize: 13 },
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
+      axisLabel: { color: '#999' }
+    },
+    yAxis: { 
+      name: 'y(n)', 
+      scale: true, 
+      splitLine: { show: false },
+      nameTextStyle: { color: '#ccc', fontSize: 13 },
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
+      axisLabel: { color: '#999' }
+    },
     series: [{
       type: 'scatter',
-      symbolSize: 2,
-      itemStyle: { color: 'rgba(64, 158, 255, 0.6)' },
+      symbolSize: 2.5,
+      itemStyle: { color: 'rgba(0, 255, 170, 0.6)' },
       data: scatterData
     }]
   }, true);
@@ -280,74 +411,361 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
-.chaos-analysis-page {
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
-}
-.page-header {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 20px;
-  border-left: 5px solid #409EFF;
-  padding-left: 10px;
-}
-.control-card {
-  height: 100%;
-}
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.mode-group {
-  width: 100%;
-  display: flex;
-}
-.mode-group :deep(.el-radio-button) {
-  flex: 1;
-}
-.mode-group :deep(.el-radio-button__inner) {
-  width: 100%;
+<style scoped lang="scss">
+@use '@/styles/variables.scss' as *;
+
+.chaos-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  
+  // Page Header
+  .page-header {
+    padding: 40px 0 48px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 48px;
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      
+      .title-wrapper {
+        .page-title {
+          font-size: 40px;
+          font-weight: 600;
+          color: $text-primary;
+          margin: 0 0 12px;
+          letter-spacing: -0.01em;
+        }
+        
+        .page-subtitle {
+          font-size: 16px;
+          color: $text-secondary;
+          margin: 0;
+          line-height: 1.6;
+        }
+      }
+      
+      .header-meta {
+        .mode-badge {
+          padding: 8px 16px;
+          background: rgba(0, 212, 255, 0.1);
+          border: 1px solid rgba(0, 212, 255, 0.2);
+          border-radius: 8px;
+          font-size: 14px;
+          color: $primary-color;
+          font-weight: 500;
+        }
+      }
+    }
+  }
+  
+  // Main Container
+  .chaos-container {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+  
+  // Parameters Section
+  .params-section {
+    .section-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 32px;
+      
+      .card-header {
+        margin-bottom: 32px;
+        
+        h3 {
+          font-size: 18px;
+          font-weight: 600;
+          color: $text-primary;
+          margin: 0;
+        }
+      }
+      
+      .params-form {
+        .form-group {
+          margin-bottom: 28px;
+          
+          .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: $text-primary;
+            margin-bottom: 12px;
+          }
+        }
+        
+        // Mode Selector
+        .mode-selector {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          
+          .mode-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            
+            &:hover {
+              background: rgba(255, 255, 255, 0.04);
+              border-color: rgba(0, 212, 255, 0.3);
+            }
+            
+            &.active {
+              background: rgba(0, 212, 255, 0.08);
+              border-color: rgba(0, 212, 255, 0.4);
+              
+              .mode-title {
+                color: $primary-color;
+              }
+            }
+            
+            .mode-title {
+              font-size: 15px;
+              font-weight: 500;
+              color: $text-primary;
+              margin-bottom: 4px;
+              transition: color 0.2s ease;
+            }
+            
+            .mode-desc {
+              font-size: 13px;
+              color: $text-secondary;
+            }
+          }
+        }
+        
+        // Range Inputs
+        .range-inputs {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          
+          .input-wrapper {
+            .input-label {
+              display: block;
+              font-size: 13px;
+              color: $text-secondary;
+              margin-bottom: 8px;
+            }
+            
+            :deep(.el-input-number) {
+              width: 100%;
+              
+              .el-input__wrapper {
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: none;
+                
+                &:hover {
+                  border-color: rgba(0, 212, 255, 0.3);
+                }
+                
+                &.is-focus {
+                  border-color: rgba(0, 212, 255, 0.5);
+                }
+              }
+            }
+          }
+        }
+        
+        // Input Number Global Style
+        :deep(.el-input-number) {
+          .el-input__wrapper {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: none;
+            
+            &:hover {
+              border-color: rgba(0, 212, 255, 0.3);
+            }
+            
+            &.is-focus {
+              border-color: rgba(0, 212, 255, 0.5);
+            }
+          }
+        }
+        
+        // Analyze Button
+        .analyze-btn {
+          width: 100%;
+          height: 48px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          background: linear-gradient(135deg, $secondary-color, $primary-color);
+          border: none;
+          border-radius: 10px;
+          color: $text-primary;
+          font-size: 16px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          margin-top: 12px;
+          
+          &:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.3);
+          }
+          
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+          
+          .el-icon {
+            font-size: 18px;
+          }
+          
+          .loading-icon {
+            animation: rotate 1s linear infinite;
+          }
+        }
+        
+        // Info Notice
+        .info-notice {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px;
+          background: rgba(0, 212, 255, 0.05);
+          border: 1px solid rgba(0, 212, 255, 0.15);
+          border-radius: 8px;
+          margin-top: 20px;
+          
+          .el-icon {
+            color: $primary-color;
+            font-size: 16px;
+            flex-shrink: 0;
+          }
+          
+          span {
+            font-size: 13px;
+            color: $text-secondary;
+            line-height: 1.5;
+          }
+        }
+      }
+    }
+  }
+  
+  // Visualization Section
+  .viz-section {
+    .charts-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    
+    .chart-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        border-color: rgba(0, 212, 255, 0.2);
+      }
+      
+      .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        
+        h3 {
+          font-size: 18px;
+          font-weight: 600;
+          color: $text-primary;
+          margin: 0;
+        }
+        
+        .chart-subtitle {
+          font-size: 13px;
+          color: $text-secondary;
+          font-weight: 400;
+        }
+      }
+      
+      .chart-canvas {
+        width: 100%;
+        
+        &.large {
+          height: 400px;
+        }
+        
+        &.normal {
+          height: 320px;
+        }
+      }
+    }
+    
+    .sub-charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+  }
 }
 
-.full-width-btn {
-  width: 100%;
-  font-weight: bold;
-}
-.mt-20 { margin-top: 20px; }
-.mt-10 { margin-top: 10px; }
-
-.info-tip {
-  margin-top: 10px;
-  color: #909399;
-  text-align: center;
+// Animations
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-/* 图表容器样式 */
-.chart-container {
-  background: #fff;
-  border-radius: 4px;
-  border: 1px solid #e4e7ed;
-  padding: 10px;
-  position: relative;
+// Responsive
+@media (max-width: 1024px) {
+  .chaos-page {
+    .chaos-container {
+      grid-template-columns: 1fr;
+    }
+    
+    .viz-section .sub-charts-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 }
-.chart-title {
-  font-size: 14px;
-  font-weight: bold;
-  color: #606266;
-  margin-bottom: 10px;
-  text-align: center;
-}
-.echart-box {
-  width: 100%;
-}
-.echart-box.large {
-  height: 350px; /* 分岔图高度 */
-}
-.echart-box.normal {
-  height: 280px; /* 下方两个图的高度 */
+
+@media (max-width: 768px) {
+  .chaos-page {
+    padding: 0 20px;
+    
+    .page-header {
+      padding: 32px 0 36px;
+      margin-bottom: 32px;
+      
+      .header-content {
+        flex-direction: column;
+        gap: 20px;
+      }
+      
+      .title-wrapper .page-title {
+        font-size: 32px;
+      }
+    }
+    
+    .params-section .section-card,
+    .viz-section .chart-card {
+      padding: 20px;
+    }
+    
+    .params-section .params-form .range-inputs {
+      grid-template-columns: 1fr;
+    }
+  }
 }
 </style>
