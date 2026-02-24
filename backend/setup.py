@@ -18,6 +18,7 @@ try:
                 os.path.join(cpp_ext_dir, "chaos_sequence.cpp"),
                 os.path.join(cpp_ext_dir, "encryption.cpp"),
                 os.path.join(cpp_ext_dir, "decryption.cpp"),
+                os.path.join(cpp_ext_dir, "chaos_analysis.cpp"),
             ]),
             include_dirs=[cpp_ext_dir],
             cxx_std=17,

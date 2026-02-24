@@ -12,6 +12,7 @@ pybind11_add_module(chaos_crypto_cpp
     chaos_sequence.cpp
     encryption.cpp
     decryption.cpp
+    chaos_analysis.cpp
 )
 
 target_include_directories(chaos_crypto_cpp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

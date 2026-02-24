@@ -1,7 +1,44 @@
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
-from cyo.utils.chaos import compute_for_varying_k, compute_for_varying_a, calculate_phase_diagram
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Try to load C++ accelerated chaos analysis, fallback to Python (numba)
+# =============================================================================
+
+_USE_CPP_ANALYSIS = False
+
+try:
+    from cyo.chaos_crypto_cpp import (
+        compute_for_varying_k as _cpp_compute_for_varying_k,
+        compute_for_varying_a as _cpp_compute_for_varying_a,
+        calculate_phase_diagram as _cpp_calculate_phase_diagram,
+    )
+    _USE_CPP_ANALYSIS = True
+    logger.info("Using C++ accelerated chaos analysis")
+except ImportError:
+    logger.warning(
+        "C++ chaos analysis not available, falling back to Python (numba) implementation. "
+        "Build it with: python setup.py build_ext --inplace"
+    )
+    from cyo.utils.chaos import (
+        compute_for_varying_k as _py_compute_for_varying_k,
+        compute_for_varying_a as _py_compute_for_varying_a,
+        calculate_phase_diagram as _py_calculate_phase_diagram,
+    )
+
+# Dispatch functions
+if _USE_CPP_ANALYSIS:
+    compute_for_varying_k = _cpp_compute_for_varying_k
+    compute_for_varying_a = _cpp_compute_for_varying_a
+    calculate_phase_diagram = _cpp_calculate_phase_diagram
+else:
+    compute_for_varying_k = _py_compute_for_varying_k
+    compute_for_varying_a = _py_compute_for_varying_a
+    calculate_phase_diagram = _py_calculate_phase_diagram
 
 router = APIRouter()
 
@@ -55,6 +92,13 @@ async def chaos_analysis(params: ChaosRequest = Body(...)):
         last_k = params.fixed_val
 
     # --- 数据组装 (Format for Frontend) ---
+    
+    # Ensure numpy arrays for column_stack (C++ returns numpy, Python may return typed lists)
+    axis_vals = np.asarray(axis_vals)
+    bif_x_flat = np.asarray(bif_x_flat)
+    bif_y_flat = np.asarray(bif_y_flat)
+    le1_vals = np.asarray(le1_vals)
+    le2_vals = np.asarray(le2_vals)
     
     bif_data_formatted = np.column_stack((bif_x_flat, bif_y_flat)).tolist()
     
