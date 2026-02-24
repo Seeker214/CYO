@@ -1,9 +1,33 @@
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Try to load C++ accelerated implementation, fallback to Python
+# =============================================================================
+
+_USE_CPP = False
+
+try:
+    from cyo.chaos_crypto_cpp import encryption as _cpp_encryption, decryption as _cpp_decryption
+    _USE_CPP = True
+    logger.info("Using C++ accelerated chaos encryption/decryption")
+except ImportError:
+    logger.warning(
+        "C++ chaos_crypto_cpp module not found, falling back to Python implementation. "
+        "Build it with: python setup.py build_ext --inplace"
+    )
+
+# =============================================================================
+# Python implementation (fallback)
+# =============================================================================
+
 from cyo.utils.chaos import get_R_matrix
 
-def encryption(image, key):
+def _encryption_py(image, key):
     """
-    encrypt the image
+    encrypt the image (Python implementation)
     
     :param image: the image will be encrypted, format: numpy
     :param key: 密钥
@@ -86,9 +110,9 @@ def encryption(image, key):
     return np.stack([I1_new, I2_new, I3_new], axis=2)
 
 
-def decryption(image, key):
+def _decryption_py(image, key):
     """
-    decrypt the image with key
+    decrypt the image with key (Python implementation)
     
     :param image: encrypted image, format: numpy
     :param key: chaos key
@@ -163,3 +187,36 @@ def decryption(image, key):
 
     # 将 float64 转回 uint8 并堆叠通道
     return np.stack([I1, I2, I3], axis=2).astype(np.uint8)
+
+
+# =============================================================================
+# Public API: dispatch to C++ or Python implementation
+# =============================================================================
+
+if _USE_CPP:
+    def encryption(image, key):
+        """
+        Encrypt the image using C++ accelerated chaos algorithm.
+        
+        :param image: the image to encrypt, format: numpy array (M, W, 3)
+        :param key: chaos key string "p1,q1"
+        """
+        if not isinstance(image, np.ndarray):
+            image = np.array(image)
+        img = np.ascontiguousarray(image.astype(np.uint8))
+        return np.asarray(_cpp_encryption(img, key))
+
+    def decryption(image, key):
+        """
+        Decrypt the image using C++ accelerated chaos algorithm.
+        
+        :param image: encrypted image, format: numpy array (M, W, 3)
+        :param key: chaos key string "p1,q1"
+        """
+        if not isinstance(image, np.ndarray):
+            image = np.array(image)
+        img = np.ascontiguousarray(image.astype(np.uint8))
+        return np.asarray(_cpp_decryption(img, key))
+else:
+    encryption = _encryption_py
+    decryption = _decryption_py
